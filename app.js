@@ -110,19 +110,60 @@ app.post("/login/", async (request, response) => {
   }
 });
 
+app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
+  const getUserQuery = `
+    SELECT
+        username, tweet, date_time AS dateTime
+    FROM 
+        user INNER JOIN tweet ON user.user_id = tweet.user_id
+    ORDER BY
+        dateTime DESC
+    LIMIT 4;`;
+  const userArray = await db.all(getUserQuery);
+  response.send(userArray);
+});
+
+app.get("/user/following/", authenticateToken, async (request, response) => {
+  const getUserFollowingQuery = `
+    SELECT
+        name
+    FROM 
+        user INNER JOIN follower ON user.user_id = follower.following_user_id
+    GROUP BY name;`;
+  const userFollowingArray = await db.all(getUserFollowingQuery);
+  response.send(userFollowingArray);
+});
+
+app.get("/user/followers/", authenticateToken, async (request, response) => {
+  const getUserFollowerQuery = `
+    SELECT
+        name
+    FROM 
+        user INNER JOIN follower ON user.user_id = follower.follower_user_id
+    GROUP BY name;`;
+  const userFollowerArray = await db.all(getUserFollowerQuery);
+  response.send(userFollowerArray);
+});
+
+app.get("/user/tweets/", authenticateToken, async (request, response) => {
+  const getUserTweetQuery = `
+    SELECT
+        tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime
+    FROM (tweet LEFT JOIN reply ON tweet.user_id = reply.user_id) AS T 
+    LEFT JOIN like ON T.user_id = like.user_id
+    GROUP BY tweet.user_id;`;
+  const userTweetArray = await db.all(getUserTweetQuery);
+  response.send(userTweetArray);
+});
+
 app.delete(
   "/tweets/:tweetId/",
   authenticateToken,
   async (request, response) => {
     const { tweetId } = request.params;
-    if (dbUser === undefined) {
-      const deleteQuery = ` DELETE FROM tweets WHERE tweet_id = ${tweetId};`;
-      await db.run(deleteQuery);
-      response.send("Tweet Removed");
-    } else {
-      response.status(401);
-      response.send("Invalid Request");
-    }
+    const deleteQuery = ` DELETE FROM tweet WHERE tweet_id = ${tweetId};`;
+    await db.run(deleteQuery);
+    response.send("Tweet Removed");
   }
 );
 
